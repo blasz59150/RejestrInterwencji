@@ -1,0 +1,59 @@
+name: Build Windows Portable
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build EXE
+        run: |
+          pyinstaller --noconfirm --clean --windowed --name RejestrInterwencji app.py
+
+      - name: Prepare portable folder
+        shell: pwsh
+        run: |
+          $target = "RejestrInterwencji-Portable"
+          New-Item -ItemType Directory -Force $target | Out-Null
+          Copy-Item -Path "dist/RejestrInterwencji/*" -Destination $target -Recurse -Force
+          New-Item -ItemType Directory -Force "$target/dane", "$target/kopie_zapasowe", "$target/raporty" | Out-Null
+          Set-Content -Path "$target/INSTRUKCJA.txt" -Value @(
+            "REJESTR INTERWENCJI - PORTABLE",
+            "",
+            "Uruchom RejestrInterwencji.exe.",
+            "Nie jest wymagany Python ani instalacja SQL.",
+            "Baza danych tworzy się automatycznie w folderze dane.",
+            "Przenoś cały folder aplikacji, nie sam plik EXE."
+          ) -Encoding UTF8
+
+      - name: Create ZIP
+        run: Compress-Archive -Path RejestrInterwencji-Portable -DestinationPath RejestrInterwencji-Windows-Portable.zip -Force
+        shell: pwsh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RejestrInterwencji-Windows-Portable
+          path: RejestrInterwencji-Windows-Portable.zip
+          if-no-files-found: error
+          retention-days: 30
