@@ -1,6 +1,7 @@
 import sys
 import sqlite3
 import shutil
+import configparser
 from pathlib import Path
 from datetime import datetime, date
 from calendar import monthrange
@@ -39,6 +40,7 @@ DATA_DIR = BASE / "dane"
 BACKUP_DIR = BASE / "kopie_zapasowe"
 REPORT_DIR = BASE / "raporty"
 DB_PATH = DATA_DIR / "interwencje.db"
+CONFIG_PATH = BASE / "konfiguracja.ini"
 
 
 def ensure_storage():
@@ -75,38 +77,76 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(APP_NAME)
         self.resize(1120, 760)
         self.setMinimumSize(900, 620)
-        self.setStyleSheet("""
-            QWidget { background: #171a20; color: #edf0f4; font-size: 14px; }
-            QMainWindow { background: #111318; }
-            QTabWidget::pane { border: 1px solid #343a46; border-radius: 8px; top: -1px; }
-            QTabBar::tab { background: #232833; padding: 12px 22px; margin-right: 4px;
-                           border-top-left-radius: 7px; border-top-right-radius: 7px; }
-            QTabBar::tab:selected { background: #9d252d; color: white; }
-            QGroupBox { border: 1px solid #343a46; border-radius: 9px; margin-top: 12px;
-                        padding: 14px; font-weight: bold; }
-            QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; }
-            QLineEdit, QComboBox, QSpinBox, QDateEdit {
-                background: #232833; border: 1px solid #454d5c; border-radius: 6px;
-                padding: 8px; min-height: 22px;
-            }
-            QPushButton { background: #9d252d; border: 0; border-radius: 7px;
-                          padding: 10px 18px; font-weight: bold; }
-            QPushButton:hover { background: #bd303a; }
-            QPushButton:disabled { background: #454a54; color: #aeb4bd; }
-            QTableWidget { background: #1d222b; alternate-background-color: #242a35;
-                           gridline-color: #3a414d; border: 1px solid #343a46;
-                           border-radius: 7px; }
-            QHeaderView::section { background: #303744; color: #f4f5f7; padding: 8px;
-                                   border: 0; font-weight: bold; }
-            QLabel#title { font-size: 24px; font-weight: bold; color: #f0c75e; }
-            QLabel#muted { color: #aab2bf; }
-            QLabel#metric { font-size: 22px; font-weight: bold; color: #f0c75e; }
-            QFrame#metricCard { background: #232833; border: 1px solid #343a46;
-                                border-radius: 9px; }
-        """)
+        self.theme = self.load_theme()
         self.build_ui()
+        self.apply_theme()
         self.refresh_history()
         self.refresh_report()
+
+    def load_theme(self):
+        config = configparser.ConfigParser()
+        if CONFIG_PATH.exists():
+            try:
+                config.read(CONFIG_PATH, encoding="utf-8")
+                value = config.get("appearance", "theme", fallback="light").lower()
+                return value if value in ("light", "dark") else "light"
+            except (configparser.Error, OSError):
+                pass
+        return "light"
+
+    def save_theme(self):
+        config = configparser.ConfigParser()
+        config["appearance"] = {"theme": self.theme}
+        with CONFIG_PATH.open("w", encoding="utf-8") as f:
+            config.write(f)
+
+    def toggle_theme(self):
+        self.theme = "dark" if self.theme == "light" else "light"
+        self.save_theme()
+        self.apply_theme()
+
+    def apply_theme(self):
+        if self.theme == "light":
+            c = {
+                "window": "#f3efe6", "surface": "#fffdf8", "surface_alt": "#e9e4d9",
+                "text": "#243247", "muted": "#64748b", "border": "#cbd3dc",
+                "field": "#ffffff", "field_border": "#aebdce", "accent": "#315f8c",
+                "accent_hover": "#244b73", "tab": "#e2e8ef", "table": "#fffdf8",
+                "table_alt": "#f0f4f8", "header": "#d9e4ef", "metric": "#244f78",
+                "secondary": "#64748b", "selection": "#c8dced"
+            }
+            self.theme_button.setText("🌙  Tryb ciemny")
+        else:
+            c = {
+                "window": "#171a20", "surface": "#232833", "surface_alt": "#2b313d",
+                "text": "#edf0f4", "muted": "#aab2bf", "border": "#343a46",
+                "field": "#232833", "field_border": "#454d5c", "accent": "#9d252d",
+                "accent_hover": "#bd303a", "tab": "#232833", "table": "#1d222b",
+                "table_alt": "#242a35", "header": "#303744", "metric": "#f0c75e",
+                "secondary": "#48515f", "selection": "#55343a"
+            }
+            self.theme_button.setText("☀  Tryb jasny")
+        self.setStyleSheet(f"""
+            QWidget {{ background: {c['window']}; color: {c['text']}; font-size: 14px; }}
+            QMainWindow {{ background: {c['window']}; }}
+            QTabWidget::pane {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 8px; top: -1px; }}
+            QTabBar::tab {{ background: {c['tab']}; color: {c['text']}; padding: 12px 22px; margin-right: 4px; border-top-left-radius: 7px; border-top-right-radius: 7px; }}
+            QTabBar::tab:selected {{ background: {c['accent']}; color: white; }}
+            QGroupBox {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 9px; margin-top: 12px; padding: 14px; font-weight: bold; }}
+            QGroupBox::title {{ subcontrol-origin: margin; left: 12px; padding: 0 6px; }}
+            QLineEdit, QComboBox, QSpinBox, QDateEdit {{ background: {c['field']}; color: {c['text']}; border: 1px solid {c['field_border']}; border-radius: 6px; padding: 8px; min-height: 22px; }}
+            QComboBox QAbstractItemView {{ background: {c['surface']}; color: {c['text']}; selection-background-color: {c['selection']}; }}
+            QPushButton {{ background: {c['accent']}; color: white; border: 0; border-radius: 7px; padding: 10px 18px; font-weight: bold; }}
+            QPushButton:hover {{ background: {c['accent_hover']}; }}
+            QPushButton:disabled {{ background: {c['secondary']}; color: white; }}
+            QPushButton#secondary {{ background: {c['secondary']}; color: white; }}
+            QTableWidget {{ background: {c['table']}; alternate-background-color: {c['table_alt']}; color: {c['text']}; gridline-color: {c['border']}; border: 1px solid {c['border']}; border-radius: 7px; selection-background-color: {c['selection']}; selection-color: {c['text']}; }}
+            QHeaderView::section {{ background: {c['header']}; color: {c['text']}; padding: 8px; border: 0; font-weight: bold; }}
+            QLabel#title {{ font-size: 24px; font-weight: bold; color: {c['accent']}; }}
+            QLabel#muted {{ color: {c['muted']}; }}
+            QLabel#metric {{ font-size: 22px; font-weight: bold; color: {c['metric']}; }}
+            QFrame#metricCard {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 9px; }}
+        """)
 
     def build_ui(self):
         central = QWidget()
@@ -121,6 +161,9 @@ class MainWindow(QMainWindow):
         left.addWidget(subtitle)
         header.addLayout(left)
         header.addStretch()
+        self.theme_button = QPushButton()
+        self.theme_button.clicked.connect(self.toggle_theme)
+        header.addWidget(self.theme_button)
         self.db_label = QLabel(f"Baza: {DB_PATH.name}")
         self.db_label.setObjectName("muted")
         header.addWidget(self.db_label)
@@ -158,7 +201,7 @@ class MainWindow(QMainWindow):
         save = QPushButton("ZAPISZ WPIS")
         save.clicked.connect(self.save_entry)
         clear = QPushButton("WYCZYŚĆ")
-        clear.setStyleSheet("background:#48515f")
+        clear.setObjectName("secondary")
         clear.clicked.connect(self.clear_entry)
         buttons.addWidget(save)
         buttons.addWidget(clear)
@@ -201,7 +244,7 @@ class MainWindow(QMainWindow):
         edit_btn = QPushButton("ZAŁADUJ ZAZNACZONY WPIS DO EDYCJI")
         edit_btn.clicked.connect(self.load_selected_entry)
         delete_btn = QPushButton("USUŃ WPIS")
-        delete_btn.setStyleSheet("background:#48515f")
+        delete_btn.setObjectName("secondary")
         delete_btn.clicked.connect(self.delete_selected_entry)
         row.addWidget(edit_btn)
         row.addWidget(delete_btn)
@@ -221,7 +264,7 @@ class MainWindow(QMainWindow):
         export = QPushButton("EKSPORT DO EXCELA")
         export.clicked.connect(self.export_excel)
         backup = QPushButton("KOPIA ZAPASOWA")
-        backup.setStyleSheet("background:#48515f")
+        backup.setObjectName("secondary")
         backup.clicked.connect(self.backup_database)
         controls.addWidget(QLabel("Miesiąc:"))
         controls.addWidget(self.rep_month)

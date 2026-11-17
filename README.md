@@ -29,3 +29,8 @@ Przenoś i archiwizuj cały folder aplikacji, nie sam plik EXE.
 
 Na Windows z Pythonem 3.10+ można uruchomić `build_windows.bat`.
 Automatyczne budowanie na GitHubie nie wymaga Pythona na komputerze użytkownika.
+
+## Motywy wyglądu
+
+Aplikacja ma przełączane motywy jasny (beżowo-niebieski) i ciemny (grafitowo-czerwony).
+Wybrany motyw jest zapisywany w pliku `konfiguracja.ini` obok EXE i przywracany przy kolejnym uruchomieniu.
